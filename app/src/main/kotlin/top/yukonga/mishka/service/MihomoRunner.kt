@@ -245,11 +245,20 @@ class MihomoRunner(private val context: Context) {
             "configure tun interface",
             "create NetworkUpdateMonitor",
         )
+        val ebpfErrorPatterns = listOf(
+            "EBPF",
+            "ebpf",
+            "bpf_prog_load",
+            "cgroup",
+            "CAP_BPF",
+            "CAP_SYS_ADMIN",
+        )
         val errorLine = log.lines().firstOrNull { line ->
             (line.contains("level=error") || line.contains("level=fatal")) &&
-                    tunErrorPatterns.any { line.contains(it, ignoreCase = true) }
+                    (tunErrorPatterns.any { line.contains(it, ignoreCase = true) } ||
+                            ebpfErrorPatterns.any { line.contains(it, ignoreCase = true) })
         } ?: return null
-        Log.e(TAG, "TUN init failed: $errorLine")
+        Log.e(TAG, "Inbound init failed: $errorLine")
         return context.getString(R.string.error_tun_init_failed, extractErrorMessage(errorLine))
     }
 

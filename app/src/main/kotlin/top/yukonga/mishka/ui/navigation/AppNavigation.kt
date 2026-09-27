@@ -83,6 +83,7 @@ import top.yukonga.mishka.ui.screen.proxy.ProxyScreen
 import top.yukonga.mishka.ui.screen.settings.AboutScreen
 import top.yukonga.mishka.ui.screen.settings.AppProxyScreen
 import top.yukonga.mishka.ui.screen.settings.BackupRestoreScreen
+import top.yukonga.mishka.ui.screen.settings.EbpfSettingsScreen
 import top.yukonga.mishka.ui.screen.settings.ExternalControlScreen
 import top.yukonga.mishka.ui.screen.settings.FileManagerEditorScreen
 import top.yukonga.mishka.ui.screen.settings.FileManagerScreen
@@ -107,6 +108,7 @@ import top.yukonga.mishka.viewmodel.AppProxyViewModel
 import top.yukonga.mishka.viewmodel.BackupViewModel
 import top.yukonga.mishka.viewmodel.ConnectionViewModel
 import top.yukonga.mishka.viewmodel.DnsQueryViewModel
+import top.yukonga.mishka.viewmodel.EbpfSettingsViewModel
 import top.yukonga.mishka.viewmodel.ExternalControlViewModel
 import top.yukonga.mishka.viewmodel.HomeUiState
 import top.yukonga.mishka.viewmodel.HomeViewModel
@@ -191,6 +193,7 @@ fun AppNavigation(
     dnsQueryViewModel: DnsQueryViewModel? = null,
     networkSettingsViewModel: NetworkSettingsViewModel? = null,
     metaSettingsViewModel: MetaSettingsViewModel? = null,
+    ebpfSettingsViewModel: EbpfSettingsViewModel? = null,
     externalControlViewModel: ExternalControlViewModel? = null,
     appProxyViewModel: AppProxyViewModel? = null,
     filePicker: FilePicker? = null,
@@ -398,6 +401,15 @@ fun AppNavigation(
                     )
                 }
             }
+            entry<Route.EbpfSettings>(swipeDismiss = swipeDismiss) {
+                ebpfSettingsViewModel?.let {
+                    EbpfSettingsScreen(
+                        viewModel = it,
+                        storage = storage,
+                        onBack = { navigator.pop() },
+                    )
+                }
+            }
             entry<Route.AppProxy>(swipeDismiss = swipeDismiss) {
                 appProxyViewModel?.let {
                     AppProxyScreen(
@@ -560,6 +572,7 @@ private fun MainPage(
                     onNavigateRootSettings = { navigator.push(Route.RootSettings) },
                     onNavigateNetworkSettings = { navigator.push(Route.NetworkSettings) },
                     onNavigateMetaSettings = { navigator.push(Route.MetaSettings) },
+                    onNavigateEbpfSettings = { navigator.push(Route.EbpfSettings) },
                     onNavigateExternalControl = { navigator.push(Route.ExternalControl) },
                     onNavigateAppProxy = { navigator.push(Route.AppProxy) },
                     onNavigateWifiPolicy = { navigator.push(Route.WifiPolicy) },

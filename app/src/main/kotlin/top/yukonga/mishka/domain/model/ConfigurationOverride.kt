@@ -2,6 +2,14 @@ package top.yukonga.mishka.domain.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * mihomo 配置覆写模型。字段按 mihomo `RawConfig` json tag 命名，
@@ -36,6 +44,7 @@ data class ConfigurationOverride(
     @SerialName("sniffer") val sniffer: SnifferOverride? = null,
     @SerialName("tun") val tun: TunOverride? = null,
     @SerialName("profile") val profile: ProfileOverride? = null,
+    @SerialName("listeners") val listeners: List<Map<String, JsonElement>>? = null,
 )
 
 @Serializable
@@ -105,3 +114,109 @@ fun ConfigurationOverride.resolveExternalController(): String =
  */
 fun ConfigurationOverride.resolveSecretOrNull(): String? =
     secret?.trim()?.takeIf { it.isNotEmpty() }
+
+// === eBPF listener helpers ===
+
+/** 从 override.listeners 中提取 type=ebpf 的第一个条目，转为 [EbpfOverride]。 */
+fun ConfigurationOverride.extractEbpf(): EbpfOverride? {
+    val listeners = listeners ?: return null
+    val map = listeners.firstOrNull {
+        (it["type"] as? JsonPrimitive)?.content == "ebpf"
+    } ?: return null
+    return map.toEbpfOverride()
+}
+
+/** 把 [EbpfOverride] 写入 override.listeners：保留非 ebpf 条目，替换/追加 ebpf 条目。 */
+fun ConfigurationOverride.withEbpf(ebpf: EbpfOverride?, sharedIfaces: List<String> = emptyList()): ConfigurationOverride {
+    val existing = listeners?.filter {
+        (it["type"] as? JsonPrimitive)?.content != "ebpf"
+    } ?: emptyList()
+    val newList = if (ebpf != null && ebpf.enabled) {
+        existing + ebpf.toJsonMap(sharedIfaces)
+    } else {
+        existing.ifEmpty { null }
+    }
+    return copy(listeners = newList)
+}
+
+/** 用户级 eBPF 配置，序列化为 mihomo `listeners` 数组中的一个 ebpf 条目。 */
+@Serializable
+data class EbpfOverride(
+    val enabled: Boolean = false,
+    val mode: String = "local",
+    val network: List<String> = listOf("tcp", "udp"),
+    val udpTimeout: Long = 300,
+    // local 本机路径
+    val localDataPlane: String = "cgroup",
+    val localDnsMode: String = "hijack",
+    val localIpv6: Boolean = true,
+    val localBypassPrivateAddress: Boolean = true,
+    val localIncludePackage: List<String> = emptyList(),
+    val localExcludePackage: List<String> = emptyList(),
+    // shared 共享路径
+    val sharedDataPlane: String = "packet_rewrite",
+    val sharedDnsMode: String = "hijack",
+    val sharedIpv6: Boolean = true,
+    val sharedBypassPrivateAddress: Boolean = true,
+)
+
+private fun EbpfOverride.toJsonMap(sharedIfaces: List<String> = emptyList()): Map<String, JsonElement> = buildMap {
+    put("name", JsonPrimitive("ebpf-inbound"))
+    put("type", JsonPrimitive("ebpf"))
+    put("mode", JsonPrimitive(mode))
+    put("network", JsonArray(network.map { JsonPrimitive(it) }))
+    put("udp-timeout", JsonPrimitive(udpTimeout))
+    val local = buildJsonObject {
+        put("data-plane", JsonPrimitive(localDataPlane))
+        put("dns-mode", JsonPrimitive(localDnsMode))
+        put("ipv6", JsonPrimitive(localIpv6))
+        put("bypass-private-address", JsonPrimitive(localBypassPrivateAddress))
+        if (localIncludePackage.isNotEmpty()) {
+            put("include-package", JsonArray(localIncludePackage.map { JsonPrimitive(it) }))
+        }
+        if (localExcludePackage.isNotEmpty()) {
+            put("exclude-package", JsonArray(localExcludePackage.map { JsonPrimitive(it) }))
+        }
+    }
+    put("local", local)
+    // shared/hybrid 模式：复用 ROOT 热点接口配置
+    if (mode == "shared" || mode == "hybrid") {
+        val shared = buildJsonObject {
+            put("data-plane", JsonPrimitive(sharedDataPlane))
+            if (sharedIfaces.isNotEmpty()) {
+                put("interface", JsonArray(sharedIfaces.map { JsonPrimitive(it) }))
+            }
+            put("dns-mode", JsonPrimitive(sharedDnsMode))
+            put("ipv6", JsonPrimitive(sharedIpv6))
+            put("bypass-private-address", JsonPrimitive(sharedBypassPrivateAddress))
+        }
+        put("shared", shared)
+    }
+}
+
+private fun Map<String, JsonElement>.toEbpfOverride(): EbpfOverride {
+    val local = (get("local") as? JsonObject)?.jsonObject
+    val shared = (get("shared") as? JsonObject)?.jsonObject
+    return EbpfOverride(
+        enabled = true,
+        mode = (get("mode") as? JsonPrimitive)?.content ?: "local",
+        network = (get("network") as? JsonArray)?.map {
+            it.jsonPrimitive.content
+        } ?: listOf("tcp", "udp"),
+        udpTimeout = (get("udp-timeout") as? JsonPrimitive)?.content?.toLongOrNull() ?: 300,
+        localDataPlane = (local?.get("data-plane") as? JsonPrimitive)?.content ?: "cgroup",
+        localDnsMode = (local?.get("dns-mode") as? JsonPrimitive)?.content ?: "hijack",
+        localIpv6 = (local?.get("ipv6") as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: true,
+        localBypassPrivateAddress = (local?.get("bypass-private-address") as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: true,
+        localIncludePackage = (local?.get("include-package") as? JsonArray)?.map {
+            it.jsonPrimitive.content
+        } ?: emptyList(),
+        localExcludePackage = (local?.get("exclude-package") as? JsonArray)?.map {
+            it.jsonPrimitive.content
+        } ?: emptyList(),
+        sharedDataPlane = (shared?.get("data-plane") as? JsonPrimitive)?.content ?: "packet_rewrite",
+        sharedDnsMode = (shared?.get("dns-mode") as? JsonPrimitive)?.content ?: "hijack",
+        sharedIpv6 = (shared?.get("ipv6") as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: true,
+        sharedBypassPrivateAddress = (shared?.get("bypass-private-address") as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: true,
+    )
+}

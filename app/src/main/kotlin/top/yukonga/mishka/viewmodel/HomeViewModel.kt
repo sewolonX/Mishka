@@ -600,7 +600,7 @@ class HomeViewModel(
 
     private fun startSystemInfoCollection() {
         systemInfoJob?.cancel()
-        systemInfoJob = pollWhileVisible(2000.milliseconds) {
+        systemInfoJob = pollWhileVisible(500.milliseconds) {
             // NetworkInterface 枚举与 /proc/<pid>/stat 都是阻塞调用
             val snapshot = withContext(Dispatchers.IO) {
                 val networkInfo = systemInfo.getNetworkInfo()
@@ -608,7 +608,7 @@ class HomeViewModel(
                 SystemInfoSnapshot(
                     localIp = networkInfo.localIp,
                     interfaceName = networkInfo.interfaceName,
-                    cpuUsage = if (cpu >= 0) "${cpu.toInt()}%" else "--%",
+                    cpuUsage = if (cpu >= 0) String.format(java.util.Locale.US, "%.2f%%", cpu) else "--%",
                 )
             }
             _systemInfoState.value = snapshot
@@ -696,7 +696,7 @@ class HomeViewModel(
 
     fun switchTunStack(stack: String) {
         // TPROXY 模式 tun.enable=false，切 stack 无意义（且不应触发 restart）
-        if (_uiState.value.tunMode == TunMode.RootTproxy) return
+        if (_uiState.value.tunMode == TunMode.RootTproxy || _uiState.value.tunMode == TunMode.RootEbpf) return
         val current = overrideStore.load()
         val nextTun = (current.tun ?: TunOverride()).copy(stack = stack)
         overrideStore.save(current.copy(tun = nextTun))

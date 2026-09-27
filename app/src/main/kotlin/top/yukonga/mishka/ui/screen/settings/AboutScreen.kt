@@ -368,7 +368,9 @@ private fun AboutContent(
                             val ossProjects = remember(mihomoVersion) {
                                 listOf(
                                     "Mishka" to "https://github.com/YuKongA/Mishka",
+                                    "Mishka-eBPF" to "https://github.com/sewolonX/Mishka",
                                     (if (mihomoVersion.isNotEmpty()) "mihomo ($mihomoVersion)" else "mihomo") to "https://github.com/MetaCubeX/mihomo",
+                                    "mihomo-eBPF" to "https://github.com/TanakaLun/mihomo",
                                     "miuix" to "https://github.com/compose-miuix-ui/miuix",
                                     "scripta" to "https://github.com/YuKongA/scripta",
                                     "AndroidHiddenApiBypass" to "https://github.com/LSPosed/AndroidHiddenApiBypass",

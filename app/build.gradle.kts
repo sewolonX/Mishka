@@ -46,6 +46,7 @@ val keystorePath: String? = properties.getProperty("KEYSTORE_PATH") ?: System.ge
 val keystorePwd: String? = properties.getProperty("KEYSTORE_PASS") ?: System.getenv("KEYSTORE_PASS")
 val alias: String? = properties.getProperty("KEY_ALIAS") ?: System.getenv("KEY_ALIAS")
 val pwd: String? = properties.getProperty("KEY_PASSWORD") ?: System.getenv("KEY_PASSWORD")
+val mihomoVersion = providers.gradleProperty("mihomo.version").orElse("dev").get()
 
 @Suppress("UnstableApiUsage")
 android {
@@ -89,6 +90,7 @@ android {
         targetSdk = ProjectConfig.Android.TARGET_SDK
         versionName = ProjectConfig.VERSION_NAME
         versionCode = gitVersionCode
+        buildConfigField("String", "MIHOMO_VERSION", "\"$mihomoVersion\"")
     }
     dependenciesInfo {
         includeInApk = false
@@ -217,8 +219,7 @@ tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.con
 
 val mihomoSubmoduleDir = rootProject.layout.projectDirectory.dir("mihomo")
 val mishkaCoreSourceDir = rootProject.layout.projectDirectory.dir("app/src/main/native/mishka_core")
-val mihomoBuildTags = listOf("cmfa", "mishka", "with_gvisor")
-val mihomoVersion = providers.gradleProperty("mihomo.version").orElse("dev").get()
+val mihomoBuildTags = listOf("cmfa", "mishka", "with_gvisor", "with_ebpf")
 val mihomoVersionPath = "github.com/metacubex/mihomo/constant.Version"
 val ndkDirectoryProvider = androidComponents.sdkComponents.ndkDirectory
 

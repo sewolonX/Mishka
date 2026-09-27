@@ -102,6 +102,7 @@
     <string name="home_tun">TUN Stack</string>
     <string name="home_inbound">入站</string>
     <string name="home_inbound_tproxy">TPROXY:%1$d</string>
+    <string name="home_inbound_ebpf">eBPF</string>
     <string name="home_switch_mode">切換代理模式</string>
     <string name="home_switch_tun_stack">切換 TUN Stack</string>
     <string name="home_uptime_seconds">%1$d 秒</string>
@@ -290,6 +291,8 @@
     <string name="settings_tun_mode_vpn">VPN</string>
     <string name="settings_tun_mode_root_tun">ROOT TUN</string>
     <string name="settings_tun_mode_root_tproxy">ROOT TPROXY</string>
+    <string name="settings_tun_mode_root_ebpf">ROOT eBPF</string>
+    <string name="settings_tun_root_ebpf_summary">eBPF 透明代理</string>
     <string name="settings_vpn_settings">VPN 設定</string>
     <string name="settings_vpn_summary">繞過私人網路、DNS 攔截、IPv6</string>
     <string name="settings_tun_device">TUN 裝置名稱</string>
@@ -575,4 +578,34 @@
     <string name="meta_age_copy_secret">複製私鑰</string>
     <string name="meta_age_copy_public">複製公鑰</string>
     <string name="meta_age_keygen_failed">產生金鑰組失敗</string>
+
+    <!-- eBPF Settings -->
+    <string name="ebpf_settings_title">eBPF 設定</string>
+    <string name="ebpf_settings_summary">eBPF 透明代理入站</string>
+    <string name="ebpf_general">一般</string>
+    <string name="ebpf_local">本地</string>
+    <string name="ebpf_shared">共享</string>
+    <string name="ebpf_mode">模式</string>
+    <string name="ebpf_mode_local">本地</string>
+    <string name="ebpf_mode_local_summary">攔截本地應用程式流量</string>
+    <string name="ebpf_mode_shared">共享</string>
+    <string name="ebpf_mode_shared_summary">攔截熱點/下游流量</string>
+    <string name="ebpf_mode_hybrid">混合</string>
+    <string name="ebpf_mode_hybrid_summary">本地 + 共享組合模式</string>
+    <string name="ebpf_data_plane">資料面</string>
+    <string name="ebpf_data_plane_cgroup_summary">透過 cgroup socket 鉤子攔截</string>
+    <string name="ebpf_data_plane_tc_summary">透過網路介面 TC 攔截</string>
+    <string name="ebpf_data_plane_packet_rewrite_summary">乙太網路熱點封包重寫</string>
+    <string name="ebpf_data_plane_socket_assign_summary">原始 IP/PPP/隧道 socket 分配</string>
+    <string name="ebpf_dns_mode">DNS 模式</string>
+    <string name="ebpf_dns_mode_hijack">劫持</string>
+    <string name="ebpf_dns_mode_hijack_summary">強制重寫 DNS 到連接埠 53</string>
+    <string name="ebpf_dns_mode_respect">遵循策略</string>
+    <string name="ebpf_dns_mode_respect_summary">遵循系統 DNS 策略</string>
+    <string name="ebpf_dns_mode_off">關閉</string>
+    <string name="ebpf_dns_mode_off_summary">不攔截 DNS</string>
+    <string name="ebpf_ipv6">IPv6</string>
+    <string name="ebpf_ipv6_summary">啟用 IPv6 流量攔截</string>
+    <string name="ebpf_bypass_private">繞過私有位址</string>
+    <string name="ebpf_bypass_private_summary">私有/群播/連結本機目標留在核心處理</string>
 </resources>

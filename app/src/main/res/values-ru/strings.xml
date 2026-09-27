@@ -104,6 +104,7 @@
     <string name="home_tun">Стек TUN</string>
     <string name="home_inbound">Входящие</string>
     <string name="home_inbound_tproxy">TPROXY:%1$d</string>
+    <string name="home_inbound_ebpf">eBPF</string>
     <string name="home_switch_mode">Сменить режим прокси</string>
     <string name="home_switch_tun_stack">Сменить стек TUN</string>
     <string name="home_uptime_seconds">%1$d с</string>
@@ -292,6 +293,8 @@
     <string name="settings_tun_mode_vpn">VPN</string>
     <string name="settings_tun_mode_root_tun">ROOT TUN</string>
     <string name="settings_tun_mode_root_tproxy">ROOT TPROXY</string>
+    <string name="settings_tun_mode_root_ebpf">ROOT eBPF</string>
+    <string name="settings_tun_root_ebpf_summary">eBPF transparent proxy</string>
     <string name="settings_vpn_settings">Настройки VPN</string>
     <string name="settings_vpn_summary">Обход локальной сети, перехват DNS, IPv6</string>
     <string name="settings_tun_device">Имя устройства TUN</string>
@@ -577,4 +580,34 @@
     <string name="meta_age_copy_secret">Копировать секретный ключ</string>
     <string name="meta_age_copy_public">Копировать открытый ключ</string>
     <string name="meta_age_keygen_failed">Не удалось сгенерировать пару ключей</string>
+
+    <!-- eBPF Settings -->
+    <string name="ebpf_settings_title">eBPF Settings</string>
+    <string name="ebpf_settings_summary">eBPF transparent proxy inbound</string>
+    <string name="ebpf_general">General</string>
+    <string name="ebpf_local">Local</string>
+    <string name="ebpf_shared">Shared</string>
+    <string name="ebpf_mode">Mode</string>
+    <string name="ebpf_mode_local">Local</string>
+    <string name="ebpf_mode_local_summary">Intercept local app traffic</string>
+    <string name="ebpf_mode_shared">Shared</string>
+    <string name="ebpf_mode_shared_summary">Intercept hotspot/downstream traffic</string>
+    <string name="ebpf_mode_hybrid">Hybrid</string>
+    <string name="ebpf_mode_hybrid_summary">Local + shared combined</string>
+    <string name="ebpf_data_plane">Data Plane</string>
+    <string name="ebpf_data_plane_cgroup_summary">Intercept via cgroup socket hooks</string>
+    <string name="ebpf_data_plane_tc_summary">Intercept via TC on network interface</string>
+    <string name="ebpf_data_plane_packet_rewrite_summary">Ethernet hotspot packet rewrite</string>
+    <string name="ebpf_data_plane_socket_assign_summary">Raw-IP/PPP/tunnel socket assign</string>
+    <string name="ebpf_dns_mode">DNS Mode</string>
+    <string name="ebpf_dns_mode_hijack">Hijack</string>
+    <string name="ebpf_dns_mode_hijack_summary">Force rewrite DNS to port 53</string>
+    <string name="ebpf_dns_mode_respect">Respect Policy</string>
+    <string name="ebpf_dns_mode_respect_summary">Follow system DNS policy</string>
+    <string name="ebpf_dns_mode_off">Off</string>
+    <string name="ebpf_dns_mode_off_summary">Do not intercept DNS</string>
+    <string name="ebpf_ipv6">IPv6</string>
+    <string name="ebpf_ipv6_summary">Enable IPv6 traffic interception</string>
+    <string name="ebpf_bypass_private">Bypass Private Addresses</string>
+    <string name="ebpf_bypass_private_summary">Keep private/groupcast/link-local destinations in kernel</string>
 </resources>

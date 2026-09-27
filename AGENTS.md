@@ -30,7 +30,7 @@ Kotlin（AGP 9 内置，不加独立 kotlin 插件）+ KSP。UI：Compose（经 
 
 ```
 buildSrc/  ProjectConfig（坐标/SDK）+ GoBuildTask（Go 交叉编译）
-mihomo/    submodule（YuKongA/mihomo branch Mishka，5 patch）
+mihomo/    submodule（sewolonX/mihomo branch ebpf-inbound，基于 TanakaLun/mihomo eBPF fork + 5 Mishka patch）
 scripta/   includeBuild 复合构建（YAML 编辑器），app 依赖 scripta:editor
 app/src/main/
 ├── kotlin/.../mishka/  App / MainActivity / MishkaApplication（startKoin + 全局初始化）
@@ -64,12 +64,13 @@ MishkaApplication.startKoin ─ Koin（dataModule + androidPlatformModule + andr
 - **MishkaCoreBridge**：`init(homeDir, userAgent)` 在 `MishkaApplication.onCreate` 一次性调用，homeDir 指向共享 GeoIP 目录 `files/mihomo/geodata/`；`fetchAndValid` 内部分 token、150ms 轮询进度。
 - **导航**：miuix NavDisplay + 自定义 Navigator（push/replace/pop/popUntil）+ LocalNavigator；back stack 经 Route sealed 多态序列化持久化（`NavBackStackSaver`），新增路由只需 `@Serializable` 即获得进程死亡恢复；**`sealed interface Route` 自身必须保留 `@Serializable`**——缺失编译通过但恢复时运行时 `SerializationException`。
 - **深色判定单点**：`ThemeConfig.resolveIsDark(systemDark)` 是 colorMode→isDark 的唯一实现，组合树内一律读 `LocalAppDarkMode.current`；**屏幕/组件禁止直接 `isSystemInDarkTheme()`**，否则用户强制深/浅色时该处不跟随（AboutScreen OS3 背景 / YAML 编辑器配色都栽过）。主题枚举的用户可见名走 [ThemeLabels.kt](app/src/main/kotlin/top/yukonga/mishka/ui/theme/ThemeLabels.kt)，禁止各自 when 映射。**XML 主题层不认 `colorMode`**：splash 与 windowBackground 走资源限定符、只认系统 uiMode，`values-night/themes.xml` 必须与 `values/` 成对（缺失即深色冷启动闪白帧）。冷启动的背景交接交给 core-splashscreen：MainActivity 挂 `Theme.Mishka.Starting`，`installSplashScreen()` 必须先于 `super.onCreate`（`postSplashScreenTheme` 靠它换回 `Theme.Mishka`，漏了就停在 splash 主题上），`setKeepOnScreenCondition { !contentReady }` 把 splash 留到 Compose 首帧，中间那层窗口背景不再露脸。用户在 app 内强制深色而系统为浅色时 XML 层仍对不齐，只有 `UiModeManager.setApplicationNightMode` 能根治。`LocalAppMonetEnabled` 标记 Monet：StatusColors 仅 Running 态跟随动态取色，Pending/Stopped 警示黄/红固定。底栏毛玻璃无独立开关，跟随全局 `blurEnabled`。
-- **隧道三模式**（`TunMode { Vpn, RootTun, RootTproxy }`）：
+- **隧道四模式**（`TunMode { Vpn, RootTun, RootTproxy, RootEbpf }`）：
   - **VPN**：VpnService 创建 TUN fd，mihomo 写 `tun.file-descriptor` + `auto-route=false`，工作目录 `imported/{uuid}/`（app UID）。
   - **ROOT TUN**：mihomo 以 root 自建 TUN，`auto-route=true` + `auto-detect-interface=true`，工作目录独立 `runtime/{uuid}/` 沙箱（启动前从 imported/ 拷贝，停止 `su rm -rf`）；imported/ 永远 app UID。
   - **ROOT TPROXY**：`tun.enable=false`，`tproxy-port=7895` 入站 + `dns.listen=0.0.0.0:1053`；`RootTproxyApplier` 装 mangle/nat 规则与 fwmark 策略路由劫持本机与热点流量，常量与 chain 结构见 [docs/root-mode.md](docs/root-mode.md)。
-  - **分应用代理**：VPN 走 VpnService API；ROOT TUN 走 mihomo `include/exclude-package`（sing-tun 翻译为 uidrange）；ROOT TPROXY 走 iptables `-m owner --uid-owner`（`AppListProvider.resolveUids` 解析包名）。**Mishka 自身始终排除**；**不**用 `routing-mark`/SO_MARK 自绕——Android Netd 用 fwmark 低 16 位编码 netId，自定义 SO_MARK 会让路由命中无默认路由的 legacy_system 表，出站全部 `network unreachable`（box_for_magisk / Surfing / box4magisk 三家同款教训）。
-  - ROOT 两子模式共享 MishkaRootService，Intent 经 `EXTRA_SUBMODE = "tun"/"tproxy"` 区分；attach 前比对 `ROOT_SUBMODE_ACTIVE` 与请求 submode，不一致则 fresh restart。ROOT 进程在 app 被杀后仍存活，重开 app 靠持久化 PID/secret **attach-only** 重连。ROOT 不可用自动回退 VPN。
+  - **ROOT eBPF**：`tun.enable=false`，通过 cgroup v2 BPF 程序拦截 socket 层 connect()/sendmsg() 重定向到 mihomo 内部 listener（端口由 mihomo 自动分配）。需要内核 `CONFIG_BPF=y` + `CONFIG_CGROUP_BPF=y` + SELinux permissive 或 BPF sepolicy。配置经 `override.run.json` 的 `listeners` 段注入，分应用代理复用 `include/exclude-package`（sing-ebpf UID 匹配），热点模式（shared/hybrid）复用 `ROOT_TETHER_IFACES`。build tag `with_ebpf`，依赖 `github.com/CHIZI-0618/sing-ebpf`（纯 Go，BPF 对象预编译）。设置页见 `EbpfSettingsScreen`。
+  - **分应用代理**：VPN 走 VpnService API；ROOT TUN 走 mihomo `include/exclude-package`（sing-tun 翻译为 uidrange）；ROOT TPROXY 走 iptables `-m owner --uid-owner`（`AppListProvider.resolveUids` 解析包名）；ROOT eBPF 走 sing-ebpf UID 匹配。**Mishka 自身始终排除**；**不**用 `routing-mark`/SO_MARK 自绕——Android Netd 用 fwmark 低 16 位编码 netId，自定义 SO_MARK 会让路由命中无默认路由的 legacy_system 表，出站全部 `network unreachable`（box_for_magisk / Surfing / box4magisk 三家同款教训）。
+  - ROOT 三子模式共享 MishkaRootService，Intent 经 `EXTRA_SUBMODE = "tun"/"tproxy"/"ebpf"` 区分；attach 前比对 `ROOT_SUBMODE_ACTIVE` 与请求 submode，不一致则 fresh restart。ROOT 进程在 app 被杀后仍存活，重开 app 靠持久化 PID/secret **attach-only** 重连。ROOT 不可用自动回退 VPN。
 - **Wi-Fi 自动切换**：`WifiPolicyMonitorService` 前台监控 active Wi-Fi SSID（精确匹配、去 Android 外层引号、忽略 `<unknown ssid>`），权限不足不触发。两种动作：**停止服务**（进入匹配 Wi-Fi 且运行中时记 `WIFI_POLICY_PENDING_RESTART` 后停止，离开时仅在 pending 存在时自动启动一次）；**Direct 模式**（进入写 `WIFI_POLICY_RUNTIME_MODE=direct`，离开清 override 回退用户持久 mode，统一经 `ProxyServiceController.restart()` 热重载，三模式行为一致；runtime mode 由 `RuntimeOverrideBuilder` 优先于 `override.user.json` 注入，不污染持久配置）。Starting 窗口内的切换排队待 Running 后补一次 restart；关闭功能时恢复被策略改动的状态。监控通知与切换通知用独立 channel。开机/包替换后 `WifiPolicyBootReceiver`（默认 disabled，随开关动态启用）恢复监控。
 - **状态桥接**：ProxyServiceBridge（全局 StateFlow + TunMode），Service 写、ViewModel 读。**进程模型**：单进程（VpnService 与 UI 同进程），ROOT 模式 mihomo 为独立 root 进程。
 - **数据持久化**：Room 3（结构化）+ PlatformStorage（简单偏好）+ StorageKeys（key 常量）+ OverrideJsonStore（`override.user.json` + `ConfigurationOverride`）；store 自带 `state: StateFlow` + `update(transform)`，Settings 三个切片 VM 共享同一实例。**OverrideJsonStore 的内存 state 是权威值**：`load()` 返回内存值不读盘，落盘由 appScope 串行异步完成（排队期间被新值取代的快照直接放弃）。因此 **Service / ProfileWorker 必须注入 Koin 单例，不得各自 `new`**——自建实例读的是盘上旧值，用户改完设置立刻启动就会用到改前的配置。
@@ -117,7 +118,7 @@ DELETE → 三表清理 + imported/{uuid}/ + pending/{uuid}/ 删除
 
 ## 构建
 
-mihomo 经 submodule 引入 Mishka fork（branch `Mishka`）。Gradle 按 ABI 驱动 Go 构建（当前仅 arm64-v8a），产物落 `app/src/main/jniLibs/<ABI>/`；`assemble` 自动触发 buildMihomo / CMake，`downloadGeoFiles` 需手动或 CI 跑。刷新 Baseline Profile：`./gradlew :app:generateReleaseBaselineProfile`（需 adb 连 arm64 真机，产物提交进仓库）。
+mihomo 经 submodule 引入 eBPF fork（sewolonX/mihomo branch `ebpf-inbound`，基于 TanakaLun/mihomo + 5 Mishka patch）。Gradle 按 ABI 驱动 Go 构建（当前仅 arm64-v8a），产物落 `app/src/main/jniLibs/<ABI>/`；`assemble` 自动触发 buildMihomo / CMake，`downloadGeoFiles` 需手动或 CI 跑。Go 版本由 `mihomo/go.mod` 指定（当前 1.25.5）。build tags：`cmfa,mishka,with_gvisor,with_ebpf`。
 
 **`downloadGeoFiles` 是 `outputs.upToDateWhen { false }`**：上游 `latest` tag 原地重发布，URL 与本地文件都不变，Gradle 只会一直判 UP-TO-DATE，本地永远停在第一次抓到的那份（CI 全新 clone 没有任务历史，察觉不到）。它没有下游依赖、只在被点名时才跑，「调了就去取最新」正是该有的语义。任务本身：URL 表是 `@Input`、连接与读取都有超时、响应必须 200 且体积过下限（404 / 限流的 HTML 会被原样写成 `geoip.metadb`，构建全绿而运行时加载失败）、先落 `.part` 再 rename。它的 `@OutputDirectory` 就是 `src/main/assets`，同时是 `mergeAssets` 的输入源，故对 `merge*Assets` 声明 `mustRunAfter`——否则两者出现在同一次调用里，Gradle 会以「消费了未声明依赖的任务输出」中止。
 

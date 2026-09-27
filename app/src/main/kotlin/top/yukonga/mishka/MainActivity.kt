@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import top.yukonga.mishka.BuildConfig
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -51,6 +52,7 @@ import top.yukonga.mishka.viewmodel.ExternalControlViewModel
 import top.yukonga.mishka.viewmodel.HomeViewModel
 import top.yukonga.mishka.viewmodel.LogViewModel
 import top.yukonga.mishka.viewmodel.MetaSettingsViewModel
+import top.yukonga.mishka.viewmodel.EbpfSettingsViewModel
 import top.yukonga.mishka.viewmodel.NetworkSettingsViewModel
 import top.yukonga.mishka.viewmodel.ProviderViewModel
 import top.yukonga.mishka.viewmodel.ProxyViewModel
@@ -70,6 +72,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var dnsQueryViewModel: DnsQueryViewModel
     private lateinit var networkSettingsViewModel: NetworkSettingsViewModel
     private lateinit var metaSettingsViewModel: MetaSettingsViewModel
+    private lateinit var ebpfSettingsViewModel: EbpfSettingsViewModel
     private lateinit var externalControlViewModel: ExternalControlViewModel
     private lateinit var appProxyViewModel: AppProxyViewModel
     private lateinit var filePicker: FilePicker
@@ -192,6 +195,7 @@ class MainActivity : ComponentActivity() {
         dnsQueryViewModel = get()
         networkSettingsViewModel = get()
         metaSettingsViewModel = get()
+        ebpfSettingsViewModel = get()
         externalControlViewModel = get()
         appProxyViewModel = get()
         subscriptionViewModel = get()
@@ -221,7 +225,7 @@ class MainActivity : ComponentActivity() {
             // ROOT 不可用时自动回退到 VPN 模式，防止卡在错误状态
             if (!hasRoot) {
                 val current = storage.getString(StorageKeys.TUN_MODE, "vpn")
-                if (current == "root_tun" || current == "root_tproxy") {
+                if (current == "root_tun" || current == "root_tproxy" || current == "root_ebpf") {
                     storage.putString(StorageKeys.TUN_MODE, "vpn")
                 }
             }
@@ -249,11 +253,13 @@ class MainActivity : ComponentActivity() {
                 dnsQueryViewModel = dnsQueryViewModel,
                 networkSettingsViewModel = networkSettingsViewModel,
                 metaSettingsViewModel = metaSettingsViewModel,
+                ebpfSettingsViewModel = ebpfSettingsViewModel,
                 externalControlViewModel = externalControlViewModel,
                 appProxyViewModel = appProxyViewModel,
                 filePicker = filePicker,
                 storage = storage,
                 bootStartManager = get<BootStartManager>(),
+                mihomoVersion = BuildConfig.MIHOMO_VERSION,
                 onScanQR = { callback ->
                     qrResultCallback = callback
                     scanQrLauncher.launch(scannerConfig)

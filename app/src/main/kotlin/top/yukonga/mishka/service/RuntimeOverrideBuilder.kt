@@ -4,8 +4,11 @@ import android.content.Context
 import kotlinx.serialization.json.Json
 import top.yukonga.mishka.domain.model.ConfigurationOverride
 import top.yukonga.mishka.domain.model.DnsOverride
+import top.yukonga.mishka.domain.model.EbpfOverride
 import top.yukonga.mishka.domain.model.ProfileOverride
 import top.yukonga.mishka.domain.model.TunOverride
+import top.yukonga.mishka.domain.model.extractEbpf
+import top.yukonga.mishka.domain.model.withEbpf
 import top.yukonga.mishka.platform.PlatformStorage
 import top.yukonga.mishka.platform.StorageKeys
 import top.yukonga.mishka.platform.TunMode
@@ -89,8 +92,8 @@ object RuntimeOverrideBuilder {
                 TunMode.RootTproxy -> RootTproxyApplier.TPROXY_PORT
                 // RootTun：xt_TPROXY 可用 + 用户选 PROXY tether 时开 tproxy 入站（RootTetherHijacker 用）
                 TunMode.RootTun -> if (tproxyForTether) RootTetherHijacker.TPROXY_PORT else userOverride.tproxyPort
-                // Vpn：透传用户 override
-                TunMode.Vpn -> userOverride.tproxyPort
+                // Vpn / RootEbpf：透传用户 override
+                TunMode.Vpn, TunMode.RootEbpf -> userOverride.tproxyPort
             },
             // RootTproxy 下**不**注入 routing-mark：Android Netd 用 fwmark 低 16 位编码 netId，
             // mihomo 若带 SO_MARK 会被解释为不存在的 netId，命中 legacy_system 表（无默认路由）
@@ -105,6 +108,7 @@ object RuntimeOverrideBuilder {
             findProcessMode = userOverride.findProcessMode ?: "off",
             dns = buildDnsOverride(tunMode, userOverride.dns),
             tun = buildTunOverride(context, tunMode, tunFd, userOverride.tun),
+            listeners = buildListenersOverride(context, tunMode, userOverride),
             profile = ProfileOverride(storeSelected = false, storeFakeIp = true),
         )
         // 原子写：mihomo 紧接着就以 --override-json 读它，半个 JSON 会让启动失败且难以定位
@@ -133,8 +137,8 @@ object RuntimeOverrideBuilder {
         tunFd: Int,
         userTun: TunOverride?,
     ): TunOverride {
-        // RootTproxy：TUN 完全关闭，sing-tun 不初始化
-        if (tunMode == TunMode.RootTproxy) {
+        // RootTproxy / RootEbpf：TUN 完全关闭，sing-tun 不初始化
+        if (tunMode == TunMode.RootTproxy || tunMode == TunMode.RootEbpf) {
             return TunOverride(enable = false)
         }
 
@@ -224,6 +228,50 @@ object RuntimeOverrideBuilder {
             gso = userTun?.gso ?: rootTunGso,
             gsoMaxSize = userTun?.gsoMaxSize ?: rootTunGsoMax,
         )
+    }
+
+    /**
+     * RootEbpf 模式：从用户 override 中提取 eBPF 配置并转为 listeners 数组注入。
+     * 非 eBPF 模式返回 null，不改动 listeners 字段。
+     */
+    private fun buildListenersOverride(
+        context: Context,
+        tunMode: TunMode,
+        userOverride: ConfigurationOverride,
+    ): List<Map<String, kotlinx.serialization.json.JsonElement>>? {
+        if (tunMode != TunMode.RootEbpf) return null
+        val ebpf = userOverride.extractEbpf() ?: EbpfOverride()
+        val storage = PlatformStorage(context)
+        // shared/hybrid 模式复用 ROOT 热点接口配置
+        val sharedIfaces = if (ebpf.mode == "shared" || ebpf.mode == "hybrid") {
+            val ifaceStr = storage.getString(StorageKeys.ROOT_TETHER_IFACES, "")
+            ifaceStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        } else {
+            emptyList()
+        }
+        // 分应用代理：复用 AppProxy 设置，注入 eBPF include/exclude-package
+        val selfPkg = context.packageName
+        val pm = context.packageManager
+        val proxyMode = parseAppProxyMode(storage.getString(StorageKeys.APP_PROXY_MODE, AppProxyMode.AllowAll.name))
+        val packages = storage.getStringSet(StorageKeys.APP_PROXY_PACKAGES, emptySet())
+        // 过滤掉已卸载的包名，避免 eBPF 启动时找不到 UID 报错
+        val installedPackages = packages.filter { pkg ->
+            try { pm.getPackageInfo(pkg, 0); true } catch (_: Exception) { false }
+        }
+        val (include, exclude) = when (proxyMode) {
+            AppProxyMode.AllowSelected -> {
+                val filtered = installedPackages.filter { it != selfPkg }
+                (if (filtered.isNotEmpty()) filtered else listOf("-")) to emptyList<String>()
+            }
+            AppProxyMode.DenySelected -> {
+                emptyList<String>() to (installedPackages + selfPkg).distinct()
+            }
+            AppProxyMode.AllowAll -> {
+                emptyList<String>() to listOf(selfPkg)
+            }
+        }
+        val ebpfWithProxy = ebpf.copy(localIncludePackage = include, localExcludePackage = exclude)
+        return userOverride.withEbpf(ebpfWithProxy, sharedIfaces).listeners
     }
 
     private fun parseAppProxyMode(name: String): AppProxyMode =

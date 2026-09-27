@@ -7,6 +7,7 @@ import top.yukonga.mishka.viewmodel.AppProxyViewModel
 import top.yukonga.mishka.viewmodel.BackupViewModel
 import top.yukonga.mishka.viewmodel.ConnectionViewModel
 import top.yukonga.mishka.viewmodel.DnsQueryViewModel
+import top.yukonga.mishka.viewmodel.EbpfSettingsViewModel
 import top.yukonga.mishka.viewmodel.ExternalControlViewModel
 import top.yukonga.mishka.viewmodel.HomeViewModel
 import top.yukonga.mishka.viewmodel.LogViewModel
@@ -43,6 +44,7 @@ val viewModelModule = module {
     single { AppProxyViewModel(get(), get(), get()) }
     single { NetworkSettingsViewModel(get()) }
     single { MetaSettingsViewModel(get()) }
+    single { EbpfSettingsViewModel(get()) }
     single { ExternalControlViewModel(get()) }
     single { LogViewModel() }
     single { ProviderViewModel() }

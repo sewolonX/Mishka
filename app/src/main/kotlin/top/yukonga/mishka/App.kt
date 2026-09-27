@@ -24,6 +24,7 @@ import top.yukonga.mishka.viewmodel.AppProxyViewModel
 import top.yukonga.mishka.viewmodel.BackupViewModel
 import top.yukonga.mishka.viewmodel.ConnectionViewModel
 import top.yukonga.mishka.viewmodel.DnsQueryViewModel
+import top.yukonga.mishka.viewmodel.EbpfSettingsViewModel
 import top.yukonga.mishka.viewmodel.ExternalControlViewModel
 import top.yukonga.mishka.viewmodel.HomeViewModel
 import top.yukonga.mishka.viewmodel.LogViewModel
@@ -52,6 +53,7 @@ fun App(
     dnsQueryViewModel: DnsQueryViewModel? = null,
     networkSettingsViewModel: NetworkSettingsViewModel? = null,
     metaSettingsViewModel: MetaSettingsViewModel? = null,
+    ebpfSettingsViewModel: EbpfSettingsViewModel? = null,
     externalControlViewModel: ExternalControlViewModel? = null,
     appProxyViewModel: AppProxyViewModel? = null,
     filePicker: FilePicker? = null,
@@ -137,6 +139,7 @@ fun App(
                 dnsQueryViewModel = dnsQueryViewModel,
                 networkSettingsViewModel = networkSettingsViewModel,
                 metaSettingsViewModel = metaSettingsViewModel,
+                ebpfSettingsViewModel = ebpfSettingsViewModel,
                 externalControlViewModel = externalControlViewModel,
                 appProxyViewModel = appProxyViewModel,
                 filePicker = filePicker,

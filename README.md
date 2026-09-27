@@ -14,18 +14,19 @@
 
 ## 简介
 
-采用 [mihomo](https://github.com/MetaCubeX/mihomo)（Clash.Meta）内核的 Android 代理客户端，UI 使用 [miuix](https://github.com/miuix-kotlin-multiplatform/miuix) + Jetpack Compose 构建，数据层 Room + Ktor + Koin。内核以子进程 + JNI 双通道集成，支持 **VPN**、**ROOT TUN**、**ROOT TPROXY** 三种隧道模式
+采用 [mihomo](https://github.com/MetaCubeX/mihomo)（Clash.Meta）内核的 Android 代理客户端，UI 使用 [miuix](https://github.com/miuix-kotlin-multiplatform/miuix) + Jetpack Compose 构建，数据层 Room + Ktor + Koin。内核以子进程 + JNI 双通道集成，支持 **VPN**、**ROOT TUN**、**ROOT TPROXY**、**ROOT eBPF** 四种隧道模式
 
 ## 特性
 
 **代理与内核**
 
 - 内置 [mihomo](https://github.com/MetaCubeX/mihomo) 内核（Mishka fork），统一为单个 `libmihomo.so` 同时承担 runtime 入口与订阅导入 JNI 门面
-- 三种隧道模式，随时切换：
+- 四种隧道模式，随时切换：
   - **VPN** —— 无需 Root，基于系统 `VpnService`
   - **ROOT TUN** —— Root 自建 TUN，`auto-route` + 大包 GSO 聚合
   - **ROOT TPROXY** —— 内核态透明代理（iptables + fwmark），性能接近直连
-- **分应用代理** —— 白/黑名单，三模式各自走 VpnService / `include-package` / iptables uid-owner
+  - **ROOT eBPF** —— cgroup v2 BPF socket 拦截，无需 TUN 设备，延迟更低功耗更低
+- **分应用代理** —— 白/黑名单，四模式各自走 VpnService / `include-package` / iptables uid-owner / eBPF UID 匹配
 - **热点流量处置**（ROOT）—— 支持绕过代理或透明代理（TPROXY）两种模式
 
 **订阅管理**
@@ -77,11 +78,13 @@ git submodule update --init --recursive
 ./gradlew :app:compileDebugKotlin -x buildMihomo_arm64_v8a
 ```
 
-> `mihomo` 通过 git submodule 引入 [YuKongA/mihomo](https://github.com/YuKongA/mihomo) 的 `Mishka` 分支（含 5 个针对 Android fd/TUN 的 patch）。Gradle 会自动驱动 Go 交叉编译，产物位于 `app/src/main/jniLibs/<ABI>/`
+> `mihomo` 通过 git submodule 引入 [sewolonX/mihomo](https://github.com/sewolonX/mihomo) 的 `ebpf-inbound` 分支（基于 [TanakaLun/mihomo](https://github.com/TanakaLun/mihomo) eBPF fork + 5 个 Mishka patch）。Gradle 会自动驱动 Go 交叉编译，产物位于 `app/src/main/jniLibs/<ABI>/`
 
 ## 致谢
 
 - [mihomo](https://github.com/MetaCubeX/mihomo) —— 代理核心
+- [mihomo-eBPF](https://github.com/TanakaLun/mihomo) —— eBPF 透明代理入站
+- [mishka-eBPF](https://github.com/sewolonX/Mishka) —— eBPF 集成分支
 - [miuix](https://github.com/miuix-kotlin-multiplatform/miuix) —— UI 组件库
 - [sparkle](https://github.com/xishang0128/sparkle) / [Clash Meta for Android](https://github.com/MetaCubeX/ClashMetaForAndroid) —— 实现参考
 - [scripta](https://github.com/YuKongA/scripta) —— 代码编辑器

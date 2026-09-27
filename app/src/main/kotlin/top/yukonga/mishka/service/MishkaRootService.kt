@@ -49,7 +49,8 @@ class MishkaRootService : Service() {
      */
     private enum class Submode(val storageValue: String, val tunMode: TunMode) {
         Tun("tun", TunMode.RootTun),
-        Tproxy("tproxy", TunMode.RootTproxy);
+        Tproxy("tproxy", TunMode.RootTproxy),
+        Ebpf("ebpf", TunMode.RootEbpf);
 
         companion object {
             fun from(value: String?): Submode = entries.firstOrNull { it.storageValue == value } ?: Tun
@@ -145,7 +146,7 @@ class MishkaRootService : Service() {
     }
 
     private fun isRootRunning(mode: TunMode): Boolean =
-        mode == TunMode.RootTun || mode == TunMode.RootTproxy
+        mode == TunMode.RootTun || mode == TunMode.RootTproxy || mode == TunMode.RootEbpf
 
     /**
      * 启动代理。**幂等**：已有启动协程在跑时忽略本次请求。唯一例外是 fresh START 抢占
@@ -247,6 +248,10 @@ class MishkaRootService : Service() {
                             if (shouldReapplyOnAttach(storage, RootTproxyApplier::anyRulesPresent)) {
                                 applyTproxyRules(storage)
                             }
+                        }
+
+                        Submode.Ebpf -> {
+                            // eBPF 程序由 mihomo 在启动时加载，无需 iptables 规则重建
                         }
                     }
                     ProxyServiceBridge.updateState(
@@ -416,6 +421,7 @@ class MishkaRootService : Service() {
             when (submode) {
                 Submode.Tun -> applyTetherRules(storage, tproxyForTether)
                 Submode.Tproxy -> applyTproxyRules(storage)
+                Submode.Ebpf -> { /* eBPF 无需 iptables 规则 */ }
             }
 
             // 7. 更新状态和通知
