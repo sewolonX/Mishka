@@ -17,12 +17,7 @@ object FormatUtils {
             value /= 1024
             unitIndex++
         }
-        return if (value == value.toLong().toDouble()) {
-            "${value.toLong()} ${units[unitIndex]}"
-        } else {
-            // 固定 Locale：默认 Locale 下阿拉伯语等会输出本地数字符号，与 ASCII 单位混排
-            String.format(Locale.US, "%.1f ${units[unitIndex]}", value)
-        }
+        return String.format(Locale.US, "%.2f ${units[unitIndex]}", value)
     }
 
     fun formatLatency(delay: Int): String {
